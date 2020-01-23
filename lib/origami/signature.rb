@@ -68,9 +68,10 @@ module Origami
         end
 
         #
-        # Sign the document with the given key and x509 certificate.
+        # Prepare the the document for the signature, calculating the signable_data.
         # _certificate_:: The X509 certificate containing the public key.
         # _key_:: The private key associated with the certificate.
+        # _external_sign_:: The signature as external data
         # _method_:: The PDF signature identifier.
         # _ca_:: Optional CA certificates used to sign the user certificate.
         # _annotation_:: Annotation associated with the signature.
@@ -79,29 +80,32 @@ module Origami
         # _contact_:: Signer contact.
         # _reason_:: Signing reason.
         #
-        def sign(certificate, key,
+        def prepare_sign(certificate: nil,
+                 key: nil,
+                 external_sign: nil,
                  method: Signature::PKCS7_DETACHED,
                  ca: [],
                  annotation: nil,
                  issuer: nil,
                  location: nil,
                  contact: nil,
-                 reason: nil)
+                 reason: nil
+                )
 
-            unless certificate.is_a?(OpenSSL::X509::Certificate)
-                raise TypeError, "A OpenSSL::X509::Certificate object must be passed."
-            end
+            # unless certificate.is_a?(OpenSSL::X509::Certificate)
+            #     raise TypeError, "A OpenSSL::X509::Certificate object must be passed."
+            # end
 
-            unless key.is_a?(OpenSSL::PKey::RSA)
-                raise TypeError, "A OpenSSL::PKey::RSA object must be passed."
-            end
+            # unless key.is_a?(OpenSSL::PKey::RSA)
+            #     raise TypeError, "A OpenSSL::PKey::RSA object must be passed."
+            # end
 
             unless ca.is_a?(::Array)
                 raise TypeError, "Expected an Array of CA certificates."
             end
 
             unless annotation.nil? or annotation.is_a?(Annotation::Widget::Signature)
-                raise TypeError, "Expected a Annotation::Widget::Signature object."
+                raise TypeError, "Expected an Annotation::Widget::Signature object."
             end
 
             #
@@ -125,7 +129,7 @@ module Origami
                 InteractiveForm::SigFlags::SIGNATURES_EXIST | InteractiveForm::SigFlags::APPEND_ONLY
 
             digsig.Type = :Sig
-            digsig.Contents = HexaString.new("\x00" * Signature::required_size(method, certificate, key, ca))
+            digsig.Contents = external_sign ? HexaString.new(external_sign) : HexaString.new("\x00" * Signature::required_size(method, certificate, key, ca))
             digsig.Filter = :"Adobe.PPKLite"
             digsig.SubFilter = Name.new(method)
             digsig.ByteRange = [0, 0, 0, 0]
@@ -135,14 +139,18 @@ module Origami
             digsig.ContactInfo = HexaString.new(contact) if contact
             digsig.Reason = HexaString.new(reason) if reason
 
-            # PKCS1 signatures require a Cert entry.
-            if method == Signature::PKCS1_RSA_SHA1
+            case method
+            when Signature::PKCS1_RSA_SHA1
+                # PKCS1 signatures require a Cert entry.
                 digsig.Cert =
                     if ca.empty?
                         HexaString.new(certificate.to_der)
                     else
                         [ HexaString.new(certificate.to_der) ] + ca.map{ |crt| HexaString.new(crt.to_der) }
                     end
+            else
+                # Adding the certificate when providing an external sign
+                digsig.Cert = external_sign ? certificate : nil
             end
 
             #
@@ -176,10 +184,39 @@ module Origami
             signable_data = file_data[digsig.ByteRange[0],digsig.ByteRange[1]] +
                 file_data[digsig.ByteRange[2],digsig.ByteRange[3]]
 
+            return [signable_data, annotation]
+        end
+
+        # Sign the document with the given key and x509 certificate.
+        # _certificate_:: The X509 certificate containing the public key.
+        # _key_:: The private key associated with the certificate.
+        # _external_sign_:: The signature as external data
+        # _method_:: The PDF signature identifier.
+        # _ca_:: Optional CA certificates used to sign the user certificate.
+        def sign(signable_data,
+                 annotation,
+                 certificate: nil,
+                 key: nil,
+                 external_sign: nil,
+                 method: Signature::PKCS7_DETACHED,
+                 ca: []
+                )
+
+            unless annotation.nil? or annotation.is_a?(Annotation::Widget::Signature)
+                raise TypeError, "Expected an Annotation::Widget::Signature object."
+            end
+
+            add_fields(annotation)
+            digsig = annotation.V
+
             #
             # Computes and inserts the signature.
             #
-            signature = Signature.compute(method, signable_data, certificate, key, ca)
+            if key
+                signature = Signature.compute(method, signable_data, certificate, key, ca)
+            else
+                signature = external_sign
+            end
             digsig.Contents[0, signature.size] = signature
 
             #
