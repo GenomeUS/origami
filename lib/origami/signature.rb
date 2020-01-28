@@ -1,3 +1,4 @@
+# coding: utf-8
 =begin
 
     This file is part of Origami, PDF manipulation framework for Ruby
@@ -65,17 +66,18 @@ module Origami
         # _contact_:: Signer contact.
         # _reason_:: Signing reason.
         #
-        def prepare_sign(certificate: nil,
-                 key: nil,
-                 external_sign: nil,
-                 method: Signature::PKCS7_DETACHED,
-                 ca: [],
-                 annotation: nil,
-                 issuer: nil,
-                 location: nil,
-                 contact: nil,
-                 reason: nil
-                )
+        def prepare_sign(
+          certificate: nil,
+          key: nil,
+          external_sign: nil,
+          method: Signature::PKCS7_DETACHED,
+          ca: [],
+          annotation: nil,
+          issuer: nil,
+          location: nil,
+          contact: nil,
+          reason: nil
+        )
 
             # unless certificate.is_a?(OpenSSL::X509::Certificate)
             #     raise TypeError, "A OpenSSL::X509::Certificate object must be passed."
@@ -170,21 +172,22 @@ module Origami
         # _external_sign_:: The signature as external data
         # _method_:: The PDF signature identifier.
         # _ca_:: Optional CA certificates used to sign the user certificate.
-        def sign(signable_data,
-                 annotation,
-                 certificate: nil,
-                 key: nil,
-                 external_sign: nil,
-                 method: Signature::PKCS7_DETACHED,
-                 ca: []
-                )
+        def sign(
+          signable_data,
+          annotation,
+          external_sign: nil,
+          method: Signature::PKCS7_DETACHED,
+          key: nil,
+          certificate: nil,
+          ca: []
+        )
 
             unless annotation.nil? or annotation.is_a?(Annotation::Widget::Signature)
                 raise TypeError, "Expected an Annotation::Widget::Signature object."
             end
 
-            add_fields(annotation)
             digsig = annotation.V
+            add_fields(annotation)
 
             #
             # Computes and inserts the signature.
