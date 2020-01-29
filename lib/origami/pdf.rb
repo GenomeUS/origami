@@ -1012,6 +1012,7 @@ module Origami
                 xrefs = [ XRef.new(0, XRef::FIRSTFREE, XRef::FREE) ]
 
                 xrefsection = XRef::Section.new
+
                 objects.sort.each do |object|
                     if (object.no - lastno).abs > 1
                         xrefsection << XRef::Subsection.new(brange, xrefs)

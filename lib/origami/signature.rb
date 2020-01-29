@@ -185,7 +185,6 @@ module Origami
 
             add_fields(annotation)
             digsig = annotation.V
-
             #
             # Computes and inserts the signature.
             #
