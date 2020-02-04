@@ -94,13 +94,13 @@ module Origami
           reason: nil
         )
 
-            # unless certificate.is_a?(OpenSSL::X509::Certificate)
-            #     raise TypeError, "A OpenSSL::X509::Certificate object must be passed."
-            # end
+            unless certificate&.is_a?(OpenSSL::X509::Certificate)
+                raise TypeError, "A OpenSSL::X509::Certificate object must be passed."
+            end
 
-            # unless key.is_a?(OpenSSL::PKey::RSA)
-            #     raise TypeError, "A OpenSSL::PKey::RSA object must be passed."
-            # end
+            unless key&.is_a?(OpenSSL::PKey::RSA)
+                raise TypeError, "A OpenSSL::PKey::RSA object must be passed."
+            end
 
             unless ca.is_a?(::Array)
                 raise TypeError, "Expected an Array of CA certificates."
