@@ -94,15 +94,17 @@ module Origami
           reason: nil
         )
 
-            unless certificate&.is_a?(OpenSSL::X509::Certificate)
+            # unless certificate&.is_a?(OpenSSL::X509::Certificate)
+            unless certificate.nil? or certificate.is_a?(OpenSSL::X509::Certificate)
                 raise TypeError, "A OpenSSL::X509::Certificate object must be passed."
             end
 
-            unless key&.is_a?(OpenSSL::PKey::RSA)
+            # unless key&.is_a?(OpenSSL::PKey::RSA)
+            unless key.nil? or key.is_a?(OpenSSL::PKey::RSA)
                 raise TypeError, "A OpenSSL::PKey::RSA object must be passed."
             end
 
-            unless ca.is_a?(::Array)
+            unless ca.nil? or ca.is_a?(::Array)
                 raise TypeError, "Expected an Array of CA certificates."
             end
 
@@ -150,9 +152,6 @@ module Origami
                     else
                         [ HexaString.new(certificate.to_der) ] + ca.map{ |crt| HexaString.new(crt.to_der) }
                     end
-            else
-                # Adding the certificate when providing an external sign
-                digsig.Cert = external_sign ? certificate : nil
             end
 
             #
@@ -186,6 +185,15 @@ module Origami
             signable_data = file_data[digsig.ByteRange[0],digsig.ByteRange[1]] +
                 file_data[digsig.ByteRange[2],digsig.ByteRange[3]]
 
+            # binding.pry
+            # pp "annotation.V: #{annotation.V}"
+
+            # puts ""
+            # self.each_field do |field|
+            #     pp field.V if field.FT == :Sig and field.V.is_a?(Dictionary)
+            # end
+            # puts ""
+
             return [signable_data, annotation]
         end
 
@@ -198,10 +206,10 @@ module Origami
         def sign(
           signable_data,
           annotation,
+          certificate,
+          key: nil,
           external_sign: nil,
           method: Signature::PKCS7_DETACHED,
-          key: nil,
-          certificate: nil,
           ca: []
         )
 
@@ -212,13 +220,15 @@ module Origami
             digsig = annotation.V
             add_fields(annotation)
 
+            # self.Sig = annotation.V
+
             #
             # Computes and inserts the signature.
             #
             if key
                 signature = Signature.compute(method, signable_data, certificate, key, ca)
             else
-                signature = external_sign
+                signature = external_sign + certificate.to_der
             end
             digsig.Contents[0, signature.size] = signature
 
